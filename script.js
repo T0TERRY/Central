@@ -101,10 +101,13 @@ document.addEventListener("click", (e) => {
   }
 
   // Handle delete buttons in the data table
-  if (e.target.classList.contains("delete-item")) {
-    const id = e.target.getAttribute("data-id");
-    const type = e.target.getAttribute("data-type");
-    deleteBudgetItem(id, type);
+  if (e.target.closest(".delete-item")) {
+    const btn = e.target.closest(".delete-item");
+    const id = btn.getAttribute("data-id");
+    const category_id = btn.getAttribute("data-category-id");
+    const type = btn.getAttribute("data-type");
+    console.log(id, type, btn.classList);
+    deleteBudgetItem(category_id, id, type);
   }
 });
 
@@ -469,6 +472,7 @@ async function loadUserData() {
     const data = await response.json();
 
     if (data.success) {
+      console.log("Data: ",data);
       budgetData.income = data.income;
       budgetData.expenses = data.expenses;
 
@@ -510,7 +514,9 @@ function updateDataTable() {
         <td>$${item.amount.toFixed(2)}</td>
         <td>${item.date}</td>
         <td>
-          <button class="icon-btn delete-item" data-id="${
+          <button class="icon-btn delete-item"
+          data-category-id = "${item.category_id}"
+           data-id="${
             item.id
           }" data-type="income">
             <i class="fas fa-trash"></i>
@@ -534,7 +540,9 @@ function updateDataTable() {
         <td>$${item.amount.toFixed(2)}</td>
         <td>${item.date}</td>
         <td>
-          <button class="icon-btn delete-item" data-id="${
+          <button class="icon-btn delete-item"
+          data-category-id = "${item.category_id}"
+          data-id="${
             item.id
           }" data-type="expense">
             <i class="fas fa-trash"></i>
@@ -571,7 +579,7 @@ function updateDataTable() {
   }
 }
 
-async function deleteBudgetItem(id, type) {
+async function deleteBudgetItem(category_id, id, type) {
   try {
     const formData = new FormData();
     formData.append("action", "delete_item");
@@ -586,10 +594,23 @@ async function deleteBudgetItem(id, type) {
     const data = await response.json();
 
     if (data.success) {
-      // Reload data from server
-      await loadUserData();
+      
+      const button = document.querySelector(`.delete-item[data-id="${id}"][data-type="${type}"]`);
+      if (button) button.closest("tr")?.remove();
+      console.log(data,"FFF");
 
-      // Update charts and table
+      // Remove from budgetData
+      if (type === "expense") {
+        budgetData.expenses.forEach(category => {
+          category.items = category.items.filter(item => item.id != id);
+        });
+      } else if (type === "income") {
+        budgetData.income.forEach(category => {
+          category.items = category.items.filter(item => item.id != id);
+        });
+      }
+
+      removeCategory(category_id, type);
       updateCharts();
       updateDataTable();
 
@@ -603,6 +624,26 @@ async function deleteBudgetItem(id, type) {
   }
 }
 
+async function removeCategory(category_id, type){
+  const formData = new FormData();
+  formData.append("action", "delete_item_category");
+  formData.append("category_id", category_id);
+  formData.append("type", type)
+  console.log(type, "type")
+  const response = await fetch("budget.php", {
+    method: "POST",
+    body: formData,
+  });
+  console.log(type)
+  const data = await response.json();
+  if(data.success){
+    updateCharts();
+    updateDataTable();
+  } else {
+    showNotification("Error", data.message);
+  }
+
+}
 // Chart functions
 function initCharts() {
   const incomeCtx = document.getElementById("incomeChart").getContext("2d");
@@ -661,6 +702,7 @@ function initCharts() {
 
 function updateCharts() {
   // Update income chart
+  console.log(budgetData.income, "income")
   if (budgetData.income.length > 0) {
     const incomeLabels = budgetData.income.map((item) => item.category);
     const incomeData = budgetData.income.map((item) => item.total);

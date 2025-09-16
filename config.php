@@ -1,7 +1,7 @@
 <?php
 // Database configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'budget_managers');
+define('DB_NAME', 'budget_manager');
 define('DB_USER', 'root'); // Change this to your database username
 define('DB_PASS', ''); // Change this to your database password
 
