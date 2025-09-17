@@ -2,11 +2,12 @@
 let budgetData = {
   income: [],
   expenses: [],
+  combine: [],
   user: null,
 };
 
 // Chart instances
-let incomeChart, expenseChart;
+let incomeChart, expenseChart, combineChart;
 
 // DOM Elements
 const loginBtn = document.getElementById("loginBtn");
@@ -134,6 +135,7 @@ async function init() {
       const parsedData = JSON.parse(savedData);
       budgetData.income = parsedData.income || [];
       budgetData.expenses = parsedData.expenses || [];
+      budgetData.combine = parsedData.combine || [];
     }
   }
 
@@ -279,6 +281,7 @@ async function handleLogout() {
     budgetData.user = null;
     budgetData.income = [];
     budgetData.expenses = [];
+    budgetData.combine = [];
     localStorage.removeItem("budgetUser");
     localStorage.removeItem("budgetData");
 
@@ -475,6 +478,8 @@ async function loadUserData() {
       console.log("Data: ",data);
       budgetData.income = data.income;
       budgetData.expenses = data.expenses;
+      budgetData.combine = data.combine;
+      console.log(budgetData);
 
       // Save to localStorage for offline access
       localStorage.setItem("budgetData", JSON.stringify(budgetData));
@@ -490,6 +495,7 @@ async function loadUserData() {
       const parsedData = JSON.parse(savedData);
       budgetData.income = parsedData.income || [];
       budgetData.expenses = parsedData.expenses || [];
+      budgetData.combine = parsedData.combine || [];
     }
   }
 }
@@ -648,6 +654,7 @@ async function removeCategory(category_id, type){
 function initCharts() {
   const incomeCtx = document.getElementById("incomeChart").getContext("2d");
   const expenseCtx = document.getElementById("expenseChart").getContext("2d");
+  const combineCtx = document.getElementById("combineChart").getContext("2d");
 
   incomeChart = new Chart(incomeCtx, {
     type: "pie",
@@ -698,11 +705,35 @@ function initCharts() {
       },
     },
   });
+
+  combineChart = new Chart(combineCtx, {
+    type: "pie",
+    data: {
+      labels: ["No data yet"],
+      datasets: [
+        {
+          data: [1],
+          backgroundColor: ["#f72585"],
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+        },
+        title: {
+          display: true,
+          text: "Combine Chart",
+        },
+      },
+    },
+  });
 }
 
 function updateCharts() {
   // Update income chart
-  console.log(budgetData.income, "income")
   if (budgetData.income.length > 0) {
     const incomeLabels = budgetData.income.map((item) => item.category);
     const incomeData = budgetData.income.map((item) => item.total);
@@ -716,7 +747,6 @@ function updateCharts() {
     incomeChart.data.datasets[0].data = [1];
     incomeChart.data.datasets[0].backgroundColor = ["#4361ee"];
   }
-
   incomeChart.update();
 
   // Update expense chart
@@ -733,9 +763,25 @@ function updateCharts() {
     expenseChart.data.datasets[0].data = [1];
     expenseChart.data.datasets[0].backgroundColor = ["#f72585"];
   }
-
   expenseChart.update();
+
+  // ✅ Update combined chart (Income vs Expenses)
+  const totalIncome = budgetData.income.reduce(
+    (sum, cat) => sum + cat.total,
+    0
+  );
+  const totalExpenses = budgetData.expenses.reduce(
+    (sum, cat) => sum + cat.total,
+    0
+  );
+
+  combineChart.data.labels = ["Income", "Expenses"];
+  combineChart.data.datasets[0].data = [totalIncome, totalExpenses];
+  combineChart.data.datasets[0].backgroundColor = ["#4361ee", "#f72585"];
+
+  combineChart.update();
 }
+
 
 function generateColors(count) {
   const colors = [];
@@ -755,7 +801,7 @@ function generatePdfReport() {
 }
 
 function exportToExcel() {
-  if (budgetData.income.length === 0 && budgetData.expenses.length === 0) {
+  if (budgetData.income.length === 0 && budgetData.expenses.length === 0 && budgetData.combine.length === 0) {
     showNotification("No data to export!", "error");
     return;
   }
@@ -944,6 +990,21 @@ function calculateTotalExpenses() {
     0
   );
 }
+
+function calculateTotals() {
+  const totalIncome = budgetData.income.reduce(
+    (total, category) => total + category.total,
+    0
+  );
+
+  const totalExpenses = budgetData.expenses.reduce(
+    (total, category) => total + category.total,
+    0
+  );
+
+  return { income: totalIncome, expenses: totalExpenses };
+}
+
 
 function showNotification(message, type) {
   notification.textContent = message;

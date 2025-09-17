@@ -176,6 +176,16 @@
             </div>
         </div>
 
+        <div class="combine-chart">
+            <div class="chart-card">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Comparison Chart
+                </h2>
+                <canvas id="combineChart"></canvas>
+            </div>
+        </div>
+
         <div class="export-options">
             <button id="generatePdf" class="btn btn-primary">
                 <i class="fas fa-file-pdf"></i>

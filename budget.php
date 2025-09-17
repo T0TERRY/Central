@@ -185,15 +185,15 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $action = $_GET['action'] ?? '';
     
     if ($action === 'get_budget_data') {
-        // Get all budget data for the user
         $conn = getDBConnection();
         
         $incomeData = [];
         $expenseData = [];
+        $combinedData = [];
         
-        // Get income categories and items
+        // --- Get income ---
         $stmt = $conn->prepare("
-            SELECT ic.id, ic.category_name, ii.id as item_id,ii.item_name, ii.amount, ii.date 
+            SELECT ic.id, ic.category_name, ii.id as item_id, ii.item_name, ii.amount, ii.date 
             FROM income_categories ic 
             LEFT JOIN income_items ii ON ic.id = ii.category_id 
             WHERE ic.user_id = :user_id
@@ -201,7 +201,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ");
         $stmt->bindParam(':user_id', $userId);
         $stmt->execute();
-        
+    
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $categoryId = $row['id'];
             if (!isset($incomeData[$categoryId])) {
@@ -222,10 +222,17 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'date' => $row['date']
                 ];
                 $incomeData[$categoryId]['total'] += (float)$row['amount'];
+    
+                // Add to combined dataset by date
+                $date = $row['date'];
+                if (!isset($combinedData[$date])) {
+                    $combinedData[$date] = ['date' => $date, 'income' => 0, 'expense' => 0];
+                }
+                $combinedData[$date]['income'] += (float)$row['amount'];
             }
         }
-        
-        // Get expense categories and items
+    
+        // --- Get expenses ---
         $stmt = $conn->prepare("
             SELECT ec.id, ec.category_name, ei.id as item_id, ei.item_name, ei.amount, ei.date 
             FROM expense_categories ec 
@@ -235,7 +242,7 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ");
         $stmt->bindParam(':user_id', $userId);
         $stmt->execute();
-        
+    
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $categoryId = $row['id'];
             if (!isset($expenseData[$categoryId])) {
@@ -256,17 +263,31 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     'date' => $row['date']
                 ];
                 $expenseData[$categoryId]['total'] += (float)$row['amount'];
+    
+                // Add to combined dataset by date
+                $date = $row['date'];
+                if (!isset($combinedData[$date])) {
+                    $combinedData[$date] = ['date' => $date, 'income' => 0, 'expense' => 0];
+                }
+                $combinedData[$date]['expense'] += (float)$row['amount'];
             }
         }
-        
+    
         closeDBConnection($conn);
-        
+    
+        // sort combined data by date
+        usort($combinedData, function ($a, $b) {
+            return strtotime($a['date']) - strtotime($b['date']);
+        });
+    
         echo json_encode([
             'success' => true,
             'income' => array_values($incomeData),
-            'expenses' => array_values($expenseData)
+            'expenses' => array_values($expenseData),
+            'combine' => array_values($combinedData)
         ]);
     }
+    
     else {
         echo json_encode(['success' => false, 'message' => 'Invalid action']);
     }
